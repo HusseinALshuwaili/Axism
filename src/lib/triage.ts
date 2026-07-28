@@ -82,18 +82,27 @@ export async function triageAlert(alert: Alert): Promise<TriageResult> {
       { role: "fast", temperature: 0.2 });
     const o = safeParseJson(raw) as Record<string, unknown> | null;
     if (o && typeof o.verdict === "string" && VALID.includes(o.verdict)) {
+      let verdict = o.verdict as Verdict;
+      let rationale = String(o.rationale ?? base.rationale);
+      let recommendation = String(o.recommendation ?? base.recommendation);
       const conf = Number(o.confidence), sev = Number(o.severityScore), pri = Number(o.priority);
-      return {
-        alertId: alert.id,
-        verdict: o.verdict as Verdict,
-        confidence: conf >= 0 && conf <= 1 ? conf : 0.6,
-        severityScore: Number.isFinite(sev) ? Math.round(Math.max(0, Math.min(100, sev))) : base.severityScore,
-        priority: pri >= 1 && pri <= 5 ? pri : base.priority,
-        rationale: String(o.rationale ?? base.rationale),
-        recommendation: String(o.recommendation ?? base.recommendation),
-        mode: "model",
-        intel,
-      };
+      let severityScore = Number.isFinite(sev) ? Math.round(Math.max(0, Math.min(100, sev))) : base.severityScore;
+      let priority = pri >= 1 && pri <= 5 ? pri : base.priority;
+      let confidence = conf >= 0 && conf <= 1 ? conf : 0.6;
+
+      // Guardrail: never let the model ESCALATE a clearly-benign alert.
+      // If the rules confidently say false_positive (benign keywords, no malicious
+      // signal, low score) but the model says true_positive, trust the rules.
+      if (base.verdict === "false_positive" && verdict === "true_positive") {
+        verdict = "false_positive";
+        rationale = `Rules identify this as a benign, authorized event, so the model's escalation was overridden. (Model note: ${rationale})`;
+        recommendation = "Close as false positive.";
+        severityScore = base.severityScore;
+        priority = base.priority;
+        confidence = 0.6;
+      }
+
+      return { alertId: alert.id, verdict, confidence, severityScore, priority, rationale, recommendation, mode: "model", intel };
     }
   } catch { /* fall back to deterministic */ }
   return base;
