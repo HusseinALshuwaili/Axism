@@ -1,0 +1,25 @@
+{
+  "name": "axism",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Axism — AI-native security operations. The autonomous security brain (red, blue, and grey — one AI).",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "tsx src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "e2b": "^2.36.0",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

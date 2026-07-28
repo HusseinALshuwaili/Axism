@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Axism — AI Security Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#05070b; --bg2:#080b12; --panel:#0c111a; --panel2:#0f1522;
+  --line:#18202e; --line2:#212c3d;
+  --text:#e8ecf3; --muted:#8a97ab; --dim:#5a6577;
+  --accent:#25f4b0; --accent-dim:#0f7d5c; --accent2:#4f8cff;
+  --safe:#25f4b0; --review:#f5b62e; --blocked:#ff4d57;
+  --glow:0 0 0 1px rgba(37,244,176,.14), 0 0 22px -6px rgba(37,244,176,.35);
+  --disp:'Chakra Petch',sans-serif; --mono:'JetBrains Mono',monospace; --ui:'Inter',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--ui);overflow:hidden;
+  background-image:
+    radial-gradient(900px 500px at 82% -8%, rgba(37,244,176,.10), transparent 60%),
+    radial-gradient(700px 500px at 0% 110%, rgba(79,140,255,.08), transparent 55%),
+    linear-gradient(rgba(255,255,255,.014) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.014) 1px, transparent 1px);
+  background-size:auto,auto,42px 42px,42px 42px;}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:linear-gradient(rgba(37,244,176,.04),transparent 3px);background-size:100% 4px;
+  animation:scan 8s linear infinite;opacity:.5}
+@keyframes scan{to{transform:translateY(42px)}}
+@media (prefers-reduced-motion:reduce){body::after{animation:none}}
+
+.app{display:grid;grid-template-columns:230px 1fr 300px;grid-template-rows:56px 1fr;height:100vh}
+
+/* ---- top bar ---- */
+.top{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(8,11,18,.7);backdrop-filter:blur(6px);z-index:20}
+.brand{display:flex;align-items:center;gap:11px}
+.mark{width:26px;height:26px;position:relative}
+.brand h1{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:3px;margin:0}
+.brand h1 span{color:var(--accent)}
+.brand small{font-family:var(--mono);color:var(--dim);font-size:10px;letter-spacing:1px;margin-left:2px}
+.top .sep{width:1px;height:22px;background:var(--line2)}
+.tagline{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.5px}
+.hud{margin-left:auto;display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:11px}
+.stat{display:flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line2);border-radius:6px;color:var(--muted);background:var(--panel)}
+.stat b{color:var(--text);font-weight:500}
+.stat.ok{color:var(--accent);border-color:rgba(37,244,176,.28)}
+.stat.warn{color:var(--review);border-color:rgba(245,182,46,.28)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+
+/* ---- rails ---- */
+.rail{border-right:1px solid var(--line);background:rgba(10,14,22,.5);padding:16px 12px;overflow-y:auto}
+.rail.r{border-right:0;border-left:1px solid var(--line)}
+.rlabel{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--dim);text-transform:uppercase;margin:4px 8px 10px}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 11px;border-radius:8px;color:var(--muted);text-decoration:none;font-size:13.5px;position:relative;margin-bottom:2px;border:1px solid transparent;cursor:pointer}
+.nav a i{font-size:17px;width:18px;text-align:center}
+.nav a.on{color:var(--text);background:linear-gradient(90deg,rgba(37,244,176,.10),transparent);border-color:rgba(37,244,176,.22)}
+.nav a.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--accent);box-shadow:0 0 8px var(--accent)}
+.nav a:not(.on):hover{color:var(--text);background:var(--panel)}
+.soon{margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.5px;color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:1px 5px}
+
+/* ---- center console ---- */
+.console{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.chead{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line)}
+.chead .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:rgba(37,244,176,.08);border:1px solid rgba(37,244,176,.25);color:var(--accent);font-size:18px}
+.chead h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:1.5px;margin:0}
+.chead p{margin:2px 0 0;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.feed{flex:1;overflow-y:auto;padding:22px;scroll-behavior:smooth}
+.feed::-webkit-scrollbar{width:8px}.feed::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+
+.msg{max-width:860px;margin:0 auto 20px;animation:rise .35s ease}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}}
+.who{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:7px;display:flex;align-items:center;gap:7px}
+.who i{font-size:13px}
+.me .who{color:var(--accent2)}
+.bubble{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:14px 16px;position:relative}
+.me .bubble{background:linear-gradient(180deg,rgba(79,140,255,.07),transparent);border-color:rgba(79,140,255,.2)}
+.corner{position:absolute;width:9px;height:9px;border-color:var(--accent);opacity:.5}
+.corner.tl{top:-1px;left:-1px;border-top:1px solid;border-left:1px solid;border-top-left-radius:4px}
+.corner.br{bottom:-1px;right:-1px;border-bottom:1px solid;border-right:1px solid;border-bottom-right-radius:4px}
+.lead{color:var(--muted);font-size:13.5px;line-height:1.6}
+
+/* ---- pipeline ---- */
+.pipe{display:flex;align-items:center;justify-content:space-between;margin:2px 0 14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg2)}
+.node{display:flex;flex-direction:column;align-items:center;gap:6px;flex:0 0 auto;position:relative;z-index:2}
+.node .ring{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;border:1px solid var(--line2);background:var(--panel);color:var(--dim);font-size:15px;transition:.25s}
+.node span{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);transition:.25s}
+.node.active .ring{border-color:var(--review);color:var(--review);box-shadow:0 0 14px -4px var(--review);animation:pulse 1.2s infinite}
+.node.active span{color:var(--review)}
+.node.done .ring{border-color:var(--accent);color:var(--accent);background:rgba(37,244,176,.08)}
+.node.done span{color:var(--accent)}
+.link{flex:1;height:1px;background:var(--line2);margin:0 6px;position:relative;top:-9px}
+.link.fill{background:linear-gradient(90deg,var(--accent),var(--accent-dim))}
+
+/* ---- command cards + terminal ---- */
+.cmd{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;margin:6px 0;background:var(--panel2);font-family:var(--mono);font-size:12.5px}
+.cmd code{color:var(--text);word-break:break-all}
+.cmd .purpose{margin-left:auto;color:var(--dim);font-size:10.5px;font-family:var(--ui);white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis}
+.rb{font-family:var(--mono);font-size:9px;letter-spacing:.5px;text-transform:uppercase;padding:3px 7px;border-radius:5px;border:1px solid;flex:0 0 auto}
+.rb.safe{color:var(--safe);border-color:rgba(37,244,176,.3);background:rgba(37,244,176,.06)}
+.rb.review{color:var(--review);border-color:rgba(245,182,46,.3);background:rgba(245,182,46,.06)}
+.rb.blocked{color:var(--blocked);border-color:rgba(255,77,87,.3);background:rgba(255,77,87,.06)}
+.term{border:1px solid var(--line);border-radius:9px;margin:8px 0;overflow:hidden;background:#070a0f}
+.term .bar{display:flex;align-items:center;gap:6px;padding:7px 11px;border-bottom:1px solid var(--line);background:var(--panel)}
+.term .bar i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
+.term .bar .t{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-left:6px;word-break:break-all}
+.term pre{margin:0;padding:11px 13px;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:#a9d8c6;white-space:pre-wrap;max-height:260px;overflow:auto}
+.explain{margin-top:12px;padding:12px 14px 12px 15px;border-left:2px solid var(--accent);border-radius:0 8px 8px 0;background:rgba(37,244,176,.045);color:#d4dbe6;font-size:13.5px;line-height:1.65}
+.explain .h{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.appr{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.5px;color:var(--review);border:1px solid rgba(245,182,46,.4);background:rgba(245,182,46,.08);border-radius:6px;padding:5px 10px;cursor:pointer;flex:0 0 auto}
+.appr:hover{background:rgba(245,182,46,.18)}
+.appr:disabled{opacity:.5;cursor:default}
+.note{font-family:var(--mono);font-size:11px;margin-top:8px;display:flex;align-items:center;gap:7px}
+.note.warn{color:var(--review)} .note.err{color:var(--blocked)}
+
+/* ---- input ---- */
+.inbar{border-top:1px solid var(--line);padding:14px 22px;background:rgba(8,11,18,.6)}
+.inwrap{max-width:860px;margin:0 auto}
+.prompt{display:flex;align-items:center;gap:10px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);padding:0 8px 0 14px;transition:.2s}
+.prompt:focus-within{border-color:var(--accent);box-shadow:var(--glow)}
+.prompt .pfx{font-family:var(--mono);color:var(--accent);font-weight:700}
+.prompt input{flex:1;background:transparent;border:0;outline:0;color:var(--text);font-family:var(--mono);font-size:14px;padding:14px 0}
+.prompt input::placeholder{color:var(--dim)}
+.run{font-family:var(--disp);font-weight:600;letter-spacing:1px;font-size:12px;color:#04140c;background:var(--accent);border:0;border-radius:8px;padding:9px 16px;cursor:pointer;display:flex;align-items:center;gap:6px}
+.run:disabled{opacity:.45;cursor:default}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.chip{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
+.chip:hover{color:var(--accent);border-color:rgba(37,244,176,.3)}
+
+/* ---- telemetry panel ---- */
+.tel .box{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px 13px;margin-bottom:12px}
+.tel .kv{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11.5px;padding:4px 0;color:var(--muted)}
+.tel .kv b{color:var(--text);font-weight:500}
+.legend{display:flex;flex-direction:column;gap:8px}
+.legend div{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;color:var(--muted)}
+.legend .sq{width:10px;height:10px;border-radius:3px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{border:1px solid var(--line);border-radius:9px;padding:10px;background:var(--bg2)}
+.metric .n{font-family:var(--disp);font-size:22px;font-weight:600;color:var(--text)}
+.metric .l{font-family:var(--mono);font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--dim);margin-top:2px}
+@media (max-width:1100px){.app{grid-template-columns:0 1fr 0}.rail{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 26 26" fill="none">
+        <path d="M13 1.5 2.5 7v9L13 24.5 23.5 16V7L13 1.5Z" stroke="#25f4b0" stroke-width="1.3"/>
+        <path d="M13 6.5 7.5 9.7v6.6L13 19.5l5.5-3.2V9.7L13 6.5Z" fill="rgba(37,244,176,.12)" stroke="#25f4b0" stroke-width="1"/>
+        <circle cx="13" cy="13" r="2" fill="#25f4b0"/>
+      </svg>
+      <h1>AX<span>ISM</span></h1><small>v0.1</small>
+    </div>
+    <div class="sep"></div>
+    <div class="tagline">autonomous security brain — red · blue · grey</div>
+    <div class="hud" id="hud"><span class="dot"></span></div>
+  </div>
+
+  <aside class="rail">
+    <div class="rlabel">agents</div>
+    <nav class="nav">
+      <a class="on"><i class="ti ti-terminal-2"></i> Security Shell</a>
+      <a><i class="ti ti-shield-half"></i> Alert Triage <span class="soon">soon</span></a>
+      <a><i class="ti ti-radar-2"></i> Recon <span class="soon">soon</span></a>
+      <a><i class="ti ti-sword"></i> Red Team <span class="soon">soon</span></a>
+      <a><i class="ti ti-shield-check"></i> Blue Team <span class="soon">soon</span></a>
+      <a><i class="ti ti-arrows-shuffle"></i> Purple Loop <span class="soon">soon</span></a>
+    </nav>
+    <div class="rlabel" style="margin-top:18px">knowledge</div>
+    <nav class="nav">
+      <a><i class="ti ti-brain"></i> Security Chat <span class="soon">soon</span></a>
+      <a><i class="ti ti-bug"></i> CVE Lookup <span class="soon">soon</span></a>
+    </nav>
+  </aside>
+
+  <main class="console">
+    <div class="chead">
+      <div class="ic"><i class="ti ti-terminal-2"></i></div>
+      <div><h2>AI SECURITY SHELL</h2><p>plan → gate → execute (sandboxed) → explain</p></div>
+    </div>
+    <div class="feed" id="feed">
+      <div class="msg">
+        <div class="who"><i class="ti ti-cpu"></i> axism</div>
+        <div class="bubble"><span class="corner tl"></span><span class="corner br"></span>
+          <div class="lead">Tell me what to do on a host — I plan the commands, classify each by risk, run the safe ones inside an isolated microVM, and explain the output. Nothing touches your machine.</div>
+        </div>
+      </div>
+    </div>
+    <div class="inbar"><div class="inwrap">
+      <div class="prompt">
+        <span class="pfx">&gt;_</span>
+        <input id="intent" autocomplete="off" placeholder="what's listening on this box?" />
+        <button class="run" id="send"><i class="ti ti-player-play"></i> RUN</button>
+      </div>
+      <div class="chips" id="chips"></div>
+    </div></div>
+  </main>
+
+  <aside class="rail r tel">
+    <div class="rlabel">session</div>
+    <div class="box">
+      <div class="kv"><span>target</span><b>sandbox microVM</b></div>
+      <div class="kv"><span>isolation</span><b id="iso">dry-run</b></div>
+      <div class="kv"><span>brain</span><b id="brain">—</b></div>
+    </div>
+    <div class="rlabel">this session</div>
+    <div class="metrics" style="margin-bottom:12px">
+      <div class="metric"><div class="n" id="m-run">0</div><div class="l">commands run</div></div>
+      <div class="metric"><div class="n" id="m-block">0</div><div class="l">blocked</div></div>
+    </div>
+    <div class="rlabel">risk gate</div>
+    <div class="box legend">
+      <div><span class="sq" style="background:var(--safe)"></span> safe — read-only, auto-runs</div>
+      <div><span class="sq" style="background:var(--review)"></span> review — needs approval</div>
+      <div><span class="sq" style="background:var(--blocked)"></span> blocked — never runs</div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const feed=document.getElementById('feed'),input=document.getElementById('intent'),send=document.getElementById('send');
+const RISK={blocked:0,review:1,safe:2};
+let mRun=0,mBlock=0;
+const EX=["what's listening on this box?","list running processes","find suspicious cron jobs","show recent auth failures","check disk usage"];
+const chips=document.getElementById('chips');
+EX.forEach(t=>{const c=document.createElement('span');c.className='chip';c.textContent=t;c.onclick=()=>{input.value=t;run();};chips.appendChild(c);});
+
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function el(h){const d=document.createElement('div');d.innerHTML=h.trim();return d.firstElementChild;}
+
+async function status(){
+  try{
+    const h=await(await fetch('/healthz')).json();
+    document.getElementById('hud').innerHTML=
+      `<span class="stat ${h.llm==='configured'?'ok':'warn'}"><i class="ti ti-cpu" style="font-size:12px"></i> LLM <b>${h.llm}</b></span>`+
+      `<span class="stat ${h.sandbox==='microvm'?'ok':'warn'}"><i class="ti ti-box" style="font-size:12px"></i> ${h.sandbox}</span>`+
+      `<span class="dot"></span>`;
+    document.getElementById('iso').textContent=h.sandbox;
+    document.getElementById('brain').textContent=h.llm==='configured'?'online':'not set';
+  }catch{document.getElementById('hud').innerHTML='<span class="stat warn">offline</span>';}
+}
+status();
+
+function stagesRow(){
+  const s=[['plan','ti-list-check','plan'],['gate','ti-shield-lock','gate'],['execute','ti-terminal','execute'],['explain','ti-message-2','explain']];
+  return '<div class="pipe">'+s.map((x,i)=>
+    `<div class="node" data-k="${x[0]}"><div class="ring"><i class="ti ${x[1]}"></i></div><span>${x[2]}</span></div>`+
+    (i<3?'<div class="link"></div>':'')).join('')+'</div>';
+}
+
+async function run(){
+  const intent=input.value.trim(); if(!intent) return;
+  input.value='';send.disabled=true;input.disabled=true;
+  feed.appendChild(el(`<div class="msg me"><div class="who"><i class="ti ti-user"></i> operator</div><div class="bubble"><span class="corner tl"></span><span class="corner br"></span>${esc(intent)}</div></div>`));
+  const block=el(`<div class="msg"><div class="who"><i class="ti ti-cpu"></i> axism</div><div class="bubble"><span class="corner tl"></span><span class="corner br"></span><div class="body">${stagesRow()}<div class="out"></div></div></div></div>`);
+  feed.appendChild(block);feed.scrollTop=feed.scrollHeight;
+  const nodes=block.querySelectorAll('.node'),links=block.querySelectorAll('.link'),out=block.querySelector('.out');
+  const order=['plan','gate','execute','explain'];
+  const activate=(k)=>{const idx=order.indexOf(k);nodes.forEach((n,i)=>{n.classList.remove('active');if(i<idx)n.classList.add('done');});const cur=block.querySelector(`.node[data-k="${k}"]`);if(cur)cur.classList.add('active');links.forEach((l,i)=>{if(i<idx)l.classList.add('fill');});};
+  const done=()=>{nodes.forEach(n=>{n.classList.remove('active');n.classList.add('done');});links.forEach(l=>l.classList.add('fill'));};
+  const log=(h)=>{out.appendChild(el(h));feed.scrollTop=feed.scrollHeight;};
+
+  let runId;
+  try{
+    const resp=await fetch('/shell/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({intent})});
+    const txt=await resp.text();let r;
+    try{r=JSON.parse(txt);}catch{log(`<div class="note err"><i class="ti ti-alert-triangle"></i> server returned non-JSON (HTTP ${resp.status})</div>`);return fin();}
+    if(!resp.ok||r.error){log(`<div class="note err"><i class="ti ti-alert-triangle"></i> ${esc(r.error||('HTTP '+resp.status))}</div>`);return fin();}
+    runId=r.runId;
+  }catch(e){log(`<div class="note err"><i class="ti ti-alert-triangle"></i> ${esc((e&&e.message)||e)}</div>`);return fin();}
+
+  const es=new EventSource(`/shell/${runId}/stream`);
+  es.onmessage=(m)=>{let ev;try{ev=JSON.parse(m.data);}catch{return;}
+    if(ev.type==='stage'&&ev.stage){activate(ev.stage);}
+    else if(ev.type==='plan'&&Array.isArray(ev.data)){
+      const rows=ev.data.slice().sort((a,b)=>RISK[a.risk]-RISK[b.risk]).map(c=>{
+        if(c.risk==='blocked')mBlock++;
+        return `<div class="cmd"><span class="rb ${c.risk}">${c.risk}</span><code>${esc(c.cmd)}</code>${c.purpose?`<span class="purpose">${esc(c.purpose)}</span>`:''}</div>`;
+      }).join('');
+      log(`<div>${rows}</div>`);document.getElementById('m-block').textContent=mBlock;
+    }
+    else if(ev.type==='exec'&&ev.data){const r=ev.data;
+      if(r.executed){mRun++;document.getElementById('m-run').textContent=mRun;
+        if(r.stdout||r.stderr)log(`<div class="term"><div class="bar"><i></i><i></i><i></i><span class="t">$ ${esc(r.cmd)}</span></div><pre>${esc(r.stdout||r.stderr)}</pre></div>`);}
+    }
+    else if(ev.type==='complete'){const o=ev.data||{};done();
+      if(o.explanation)log(`<div class="explain"><div class="h">analysis</div>${esc(o.explanation)}</div>`);
+      if(o.needsApproval&&o.needsApproval.length){
+        log(`<div class="note warn"><i class="ti ti-lock"></i> ${o.needsApproval.length} command(s) need your approval to run</div>`);
+        o.needsApproval.forEach(p=>{
+          const row=el(`<div class="cmd"><span class="rb review">review</span><code>${esc(p.cmd)}</code><button class="appr">approve &amp; run</button></div>`);
+          const btn=row.querySelector('.appr');
+          btn.onclick=async()=>{
+            btn.disabled=true;btn.textContent='running…';
+            try{
+              const rr=await(await fetch(`/shell/${runId}/approve`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({commands:[p.cmd]})})).json();
+              (rr.results||[]).forEach(r=>{
+                if(r.executed){mRun++;document.getElementById('m-run').textContent=mRun;}
+                log(`<div class="term"><div class="bar"><i></i><i></i><i></i><span class="t">$ ${esc(r.cmd)}</span></div><pre>${esc(r.executed?(r.stdout||r.stderr||'(no output)'):(r.note||'not executed'))}</pre></div>`);
+              });
+              btn.textContent='ran';
+            }catch(e){btn.textContent='failed';btn.disabled=false;}
+          };
+          out.appendChild(row);feed.scrollTop=feed.scrollHeight;
+        });
+      }
+      es.close();fin();
+    }
+    else if(ev.type==='error'){log(`<div class="note err"><i class="ti ti-alert-triangle"></i> ${esc(ev.message)}</div>`);es.close();fin();}
+  };
+  es.onerror=()=>{log(`<div class="note err"><i class="ti ti-plug-connected-x"></i> stream disconnected</div>`);es.close();fin();};
+}
+function fin(){send.disabled=false;input.disabled=false;input.focus();}
+send.onclick=run;input.addEventListener('keydown',e=>{if(e.key==='Enter')run();});
+</script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+</body>
+</html>
