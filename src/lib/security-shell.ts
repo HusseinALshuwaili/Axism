@@ -10,6 +10,7 @@
 
 import { callLLM, hasAnyProvider, safeParseJson } from "./runtime.js";
 import { classifyCommand, executeInSandbox, sandboxAvailable, type ExecResult, type Risk } from "./sandbox.js";
+import { extractIndicators, enrichMany, formatEnrichmentContext } from "./enrichment.js";
 
 export interface PlannedCommand { cmd: string; purpose: string; risk: Risk; reason: string; }
 
@@ -72,18 +73,31 @@ export async function runSecurityShell(intent: string, emit: Emit): Promise<Shel
     emit({ type: "exec", message: `${r.executed ? "▸" : "·"} ${r.cmd}${r.note ? ` — ${r.note}` : ""}`, data: r });
   }
 
-  // --- Stage 4: Explain ---
+  // --- Stage 4: Explain (with live threat-intel enrichment) ---
   emit({ type: "stage", stage: "explain", message: "Interpreting results" });
-  let explanation = "";
   const executed = results.filter((r) => r.executed);
-  if (executed.length) {
-    const evidence = executed
-      .map((r) => `$ ${r.cmd}\n${(r.stdout || "(no output)").slice(0, 1500)}${r.stderr ? `\n[stderr] ${r.stderr.slice(0, 300)}` : ""}`)
-      .join("\n\n");
+  const evidence = executed.length
+    ? executed.map((r) => `$ ${r.cmd}\n${(r.stdout || "(no output)").slice(0, 1500)}${r.stderr ? `\n[stderr] ${r.stderr.slice(0, 300)}` : ""}`).join("\n\n")
+    : "";
+
+  // Pull public IPs / hashes / CVEs from the intent + output and enrich them.
+  let enrichCtx = "";
+  const indicators = extractIndicators(`${intent}\n${evidence}`);
+  if (indicators.length) {
+    emit({ type: "info", message: `Enriching ${indicators.length} indicator(s) via threat intel…` });
+    const items = await enrichMany(indicators);
+    if (items.length) {
+      enrichCtx = formatEnrichmentContext(items);
+      emit({ type: "info", message: items.map((i) => `${i.indicator} → ${i.verdict}`).join("  ·  ") });
+    }
+  }
+
+  let explanation = "";
+  if (evidence || enrichCtx) {
     explanation = await callLLM(
-      "You are Axism, a security analyst. Explain what the command output reveals about the host in plain language, " +
-      "flag anything suspicious, and suggest the next step. Be concise.",
-      `Intent: ${intent}\n\nCommand output:\n${evidence}`,
+      "You are Axism, a security analyst. Explain what the evidence reveals in plain language, cite the THREAT INTEL " +
+      "where relevant, flag anything suspicious, and suggest the next step. Be concise.",
+      `Intent: ${intent}\n\n${evidence ? `Command output:\n${evidence}` : ""}${enrichCtx}`,
       { role: "fast", temperature: 0.3, maxTokens: 600, json: false },
     ).catch(() => "");
   }

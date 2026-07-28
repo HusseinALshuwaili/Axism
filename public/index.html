@@ -63,12 +63,12 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 .soon{margin-left:auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.5px;color:var(--dim);border:1px solid var(--line2);border-radius:4px;padding:1px 5px}
 
 /* ---- center console ---- */
-.console{display:flex;flex-direction:column;min-width:0;background:var(--bg)}
+.console{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--bg)}
 .chead{display:flex;align-items:center;gap:12px;padding:14px 22px;border-bottom:1px solid var(--line)}
 .chead .ic{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:rgba(37,244,176,.08);border:1px solid rgba(37,244,176,.25);color:var(--accent);font-size:18px}
 .chead h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:1.5px;margin:0}
 .chead p{margin:2px 0 0;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
-.feed{flex:1;overflow-y:auto;padding:22px;scroll-behavior:smooth}
+.feed{flex:1;overflow-y:auto;min-height:0;padding:22px}
 .feed::-webkit-scrollbar{width:8px}.feed::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
 
 .msg{max-width:860px;margin:0 auto 20px;animation:rise .35s ease}
@@ -118,7 +118,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 
 /* ---- input ---- */
 .inbar{border-top:1px solid var(--line);padding:14px 22px;background:rgba(8,11,18,.6)}
-.inwrap{max-width:860px;margin:0 auto}
+.inwrap{max-width:860px;margin:0 auto;position:relative}
 .prompt{display:flex;align-items:center;gap:10px;border:1px solid var(--line2);border-radius:11px;background:var(--panel);padding:0 8px 0 14px;transition:.2s}
 .prompt:focus-within{border-color:var(--accent);box-shadow:var(--glow)}
 .prompt .pfx{font-family:var(--mono);color:var(--accent);font-weight:700}
@@ -129,6 +129,17 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
 .chip{cursor:pointer;font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
 .chip:hover{color:var(--accent);border-color:rgba(37,244,176,.3)}
+.palette{position:absolute;left:0;right:0;bottom:calc(100% + 10px);background:var(--panel);border:1px solid var(--line2);border-radius:12px;max-height:330px;overflow-y:auto;display:none;z-index:40;box-shadow:0 -10px 34px -12px rgba(0,0,0,.7)}
+.palette.open{display:block}
+.palette::-webkit-scrollbar{width:8px}.palette::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
+.pcat{font-family:var(--mono);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);padding:9px 14px 3px;position:sticky;top:0;background:var(--panel)}
+.popt{display:flex;align-items:center;gap:11px;padding:8px 14px;cursor:pointer;font-size:13px;color:var(--muted);border-left:2px solid transparent}
+.popt i{font-size:16px;color:var(--dim);width:18px;text-align:center}
+.popt .plbl{color:var(--text)}
+.popt.active,.popt:hover{background:rgba(37,244,176,.07);border-left-color:var(--accent)}
+.popt.active i,.popt:hover i{color:var(--accent)}
+.hintline{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:9px}
+.hintline kbd{background:var(--panel2);border:1px solid var(--line2);border-radius:4px;padding:1px 6px;color:var(--muted);font-family:var(--mono);font-size:10px}
 
 /* ---- telemetry panel ---- */
 .tel .box{border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:12px 13px;margin-bottom:12px}
@@ -191,12 +202,13 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
       </div>
     </div>
     <div class="inbar"><div class="inwrap">
+      <div class="palette" id="palette"></div>
       <div class="prompt">
         <span class="pfx">&gt;_</span>
-        <input id="intent" autocomplete="off" placeholder="what's listening on this box?" />
+        <input id="intent" autocomplete="off" placeholder="ask anything — or type / for security skills" />
         <button class="run" id="send"><i class="ti ti-player-play"></i> RUN</button>
       </div>
-      <div class="chips" id="chips"></div>
+      <div class="hintline">Type <kbd>/</kbd> for security skills · <kbd>↑↓</kbd> navigate · <kbd>↵</kbd> select · <kbd>esc</kbd> close</div>
     </div></div>
   </main>
 
@@ -225,9 +237,64 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 const feed=document.getElementById('feed'),input=document.getElementById('intent'),send=document.getElementById('send');
 const RISK={blocked:0,review:1,safe:2};
 let mRun=0,mBlock=0;
-const EX=["what's listening on this box?","list running processes","find suspicious cron jobs","show recent auth failures","check disk usage"];
-const chips=document.getElementById('chips');
-EX.forEach(t=>{const c=document.createElement('span');c.className='chip';c.textContent=t;c.onclick=()=>{input.value=t;run();};chips.appendChild(c);});
+// ---- / skill palette ----
+const palette=document.getElementById('palette');
+let pItems=[],pActive=0;
+const SKILLS=[
+  {c:"System",i:"ti-cpu",t:"OS, kernel & architecture",q:"show the OS name, kernel version, and CPU architecture"},
+  {c:"System",i:"ti-clock",t:"Uptime & load",q:"show system uptime and current load average"},
+  {c:"System",i:"ti-package",t:"Installed packages",q:"list all installed packages on this system"},
+  {c:"System",i:"ti-variable",t:"Environment variables",q:"show all environment variables"},
+  {c:"System",i:"ti-device-desktop",t:"Hardware & memory",q:"show CPU, memory, and hardware details"},
+  {c:"System",i:"ti-database",t:"Disk usage",q:"show mounted filesystems and disk usage"},
+  {c:"Network",i:"ti-plug-connected",t:"Listening ports",q:"list all listening TCP and UDP ports with their processes"},
+  {c:"Network",i:"ti-network",t:"Active connections",q:"show all active network connections"},
+  {c:"Network",i:"ti-route",t:"Routing & interfaces",q:"show the routing table and network interfaces"},
+  {c:"Network",i:"ti-world",t:"DNS configuration",q:"show the DNS resolver configuration"},
+  {c:"Network",i:"ti-affiliate",t:"ARP / neighbors",q:"show the ARP cache and neighbor table"},
+  {c:"Network",i:"ti-shield",t:"Firewall rules",q:"show the current firewall rules"},
+  {c:"Users & auth",i:"ti-user",t:"Who am I & privileges",q:"show the current user, groups, and privileges"},
+  {c:"Users & auth",i:"ti-users",t:"All users & groups",q:"list all users and their groups"},
+  {c:"Users & auth",i:"ti-login",t:"Recent logins",q:"show recent user logins and active sessions"},
+  {c:"Users & auth",i:"ti-alert-triangle",t:"Auth failures",q:"show recent authentication failures"},
+  {c:"Users & auth",i:"ti-user-shield",t:"Sudo rights",q:"show the sudo configuration and what the current user can run as root"},
+  {c:"Users & auth",i:"ti-terminal",t:"Users with shells",q:"list users that have interactive login shells"},
+  {c:"Privilege escalation",i:"ti-arrow-up-circle",t:"SUID / SGID binaries",q:"find all SUID and SGID binaries"},
+  {c:"Privilege escalation",i:"ti-file-alert",t:"World-writable files",q:"find world-writable files and directories"},
+  {c:"Privilege escalation",i:"ti-key",t:"Secrets in configs",q:"search config files for passwords, keys, or secrets"},
+  {c:"Privilege escalation",i:"ti-bug",t:"Sudo version / exploits",q:"show the sudo version to check for known privilege-escalation exploits"},
+  {c:"Privilege escalation",i:"ti-lock-open",t:"Binary capabilities",q:"list files that have Linux capabilities set"},
+  {c:"Privilege escalation",i:"ti-writing",t:"Writable cron / scripts",q:"check for writable cron jobs or scripts that run as root"},
+  {c:"Persistence",i:"ti-repeat",t:"All cron jobs",q:"show all cron jobs, system-wide and per-user"},
+  {c:"Persistence",i:"ti-settings",t:"Services & timers",q:"list systemd services and timers"},
+  {c:"Persistence",i:"ti-player-play",t:"Startup scripts",q:"show startup and init scripts"},
+  {c:"Persistence",i:"ti-calendar-stats",t:"Suspicious scheduled tasks",q:"look for suspicious or unusual scheduled tasks"},
+  {c:"Files & forensics",i:"ti-file-search",t:"Recently modified /etc",q:"find recently modified files in /etc"},
+  {c:"Files & forensics",i:"ti-file-plus",t:"New files (24h)",q:"find files created or changed in the last 24 hours"},
+  {c:"Files & forensics",i:"ti-files",t:"Largest files",q:"find the largest files on disk"},
+  {c:"Files & forensics",i:"ti-list-search",t:"Open files & handles",q:"list open files and the processes holding them"},
+  {c:"Files & forensics",i:"ti-history",t:"Shell history",q:"show the shell history for the current user"},
+  {c:"Files & forensics",i:"ti-search",t:"Errors in logs",q:"search system logs for recent errors and warnings"},
+  {c:"Processes",i:"ti-list-check",t:"Running processes",q:"list all running processes with details"},
+  {c:"Processes",i:"ti-eye",t:"Processes with network",q:"show processes that have open network connections"},
+];
+
+function openPalette(filter){
+  const f=(filter||"").toLowerCase().trim();
+  pItems=SKILLS.filter(s=>!f||s.t.toLowerCase().includes(f)||s.q.toLowerCase().includes(f)||s.c.toLowerCase().includes(f));
+  if(!pItems.length){palette.classList.remove('open');return;}
+  if(pActive>=pItems.length)pActive=0;
+  let html="",cur="";
+  pItems.forEach((s,i)=>{
+    if(s.c!==cur){cur=s.c;html+=`<div class="pcat">${s.c}</div>`;}
+    html+=`<div class="popt${i===pActive?' active':''}" data-i="${i}"><i class="ti ${s.i}"></i><span class="plbl">${esc(s.t)}</span></div>`;
+  });
+  palette.innerHTML=html;palette.classList.add('open');
+  palette.querySelectorAll('.popt').forEach(elm=>elm.addEventListener('mousedown',ev=>{ev.preventDefault();pickSkill(Number(elm.dataset.i));}));
+  const act=palette.querySelector('.popt.active');if(act)act.scrollIntoView({block:'nearest'});
+}
+function closePalette(){palette.classList.remove('open');}
+function pickSkill(i){const s=pItems[i];if(!s)return;input.value=s.q;closePalette();input.focus();}
 
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(h){const d=document.createElement('div');d.innerHTML=h.trim();return d.firstElementChild;}
@@ -315,7 +382,17 @@ async function run(){
   es.onerror=()=>{log(`<div class="note err"><i class="ti ti-plug-connected-x"></i> stream disconnected</div>`);es.close();fin();};
 }
 function fin(){send.disabled=false;input.disabled=false;input.focus();}
-send.onclick=run;input.addEventListener('keydown',e=>{if(e.key==='Enter')run();});
+send.onclick=run;
+input.addEventListener('input',()=>{const v=input.value;if(v.startsWith('/')){pActive=0;openPalette(v.slice(1));}else closePalette();});
+input.addEventListener('keydown',e=>{
+  if(palette.classList.contains('open')){
+    if(e.key==='ArrowDown'){e.preventDefault();pActive=Math.min(pActive+1,pItems.length-1);openPalette(input.value.slice(1));return;}
+    if(e.key==='ArrowUp'){e.preventDefault();pActive=Math.max(pActive-1,0);openPalette(input.value.slice(1));return;}
+    if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();pickSkill(pActive);return;}
+    if(e.key==='Escape'){e.preventDefault();closePalette();return;}
+  } else if(e.key==='Enter'){run();}
+});
+document.addEventListener('mousedown',e=>{if(!palette.contains(e.target)&&e.target!==input)closePalette();});
 </script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
 </body>
