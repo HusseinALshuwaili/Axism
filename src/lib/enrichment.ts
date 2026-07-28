@@ -58,12 +58,16 @@ async function enrichIp(ip: string): Promise<Enrichment | null> {
 
 async function enrichCve(cve: string): Promise<Enrichment | null> {
   try {
-    const r = await fetchWithTimeout(`https://cve.circl.lu/api/cve/${cve}`, { headers: { Accept: "application/json" } }, 8000);
+    const r = await fetchWithTimeout(`https://cvedb.shodan.io/cve/${cve}`, { headers: { Accept: "application/json" } }, 8000);
+    if (r.status === 404) return { indicator: cve, type: "cve", verdict: "no record found", detail: "", source: "Shodan CVEDB" };
     if (!r.ok) return null;
-    const d = await r.json() as { id?: string; cvss?: number; summary?: string } | null;
-    if (!d || (!d.id && !d.summary)) return { indicator: cve, type: "cve", verdict: "no record found", detail: "", source: "CIRCL" };
-    const verdict = d.cvss ? `CVSS ${d.cvss}` : "known CVE";
-    return { indicator: cve, type: "cve", verdict, detail: (d.summary ?? "").slice(0, 160), source: "CIRCL CVE Search" };
+    const d = await r.json() as { summary?: string; cvss?: number; cvss_v3?: number; epss?: number; kev?: boolean };
+    const cvss = d.cvss_v3 ?? d.cvss;
+    const parts: string[] = [];
+    if (cvss != null) parts.push(`CVSS ${cvss}`);
+    if (d.kev) parts.push("CISA KEV — exploited in the wild");
+    if (typeof d.epss === "number") parts.push(`EPSS ${(d.epss * 100).toFixed(1)}%`);
+    return { indicator: cve, type: "cve", verdict: parts.join(" · ") || "known CVE", detail: (d.summary ?? "").slice(0, 160), source: "Shodan CVEDB" };
   } catch { return null; }
 }
 

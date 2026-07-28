@@ -69,6 +69,33 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 .chead h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:1.5px;margin:0}
 .chead p{margin:2px 0 0;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
 .feed{flex:1;overflow-y:auto;min-height:0;padding:22px}
+.view{flex:1;display:flex;flex-direction:column;min-height:0}
+.view.hidden{display:none}
+.nav a[data-view]{cursor:pointer}
+.trefresh{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);border:1px solid var(--line2);background:var(--panel);border-radius:6px;padding:5px 10px;cursor:pointer;display:flex;align-items:center;gap:5px}
+.trefresh:hover{color:var(--accent);border-color:rgba(37,244,176,.3)}
+.tfeed{flex:1;overflow-y:auto;min-height:0;padding:18px 22px;max-width:920px;margin:0 auto;width:100%}
+.acard{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin-bottom:12px;overflow:hidden}
+.arow{display:flex;align-items:center;gap:12px;padding:13px 15px}
+.sevdot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.sevdot.critical{background:var(--blocked)}.sevdot.high{background:#f97316}.sevdot.medium{background:var(--review)}.sevdot.low{background:var(--safe)}
+.ainfo{flex:1;min-width:0}
+.atitle{font-size:14px;font-weight:500}
+.ameta{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:2px}
+.tbtn{font-family:var(--disp);font-weight:600;letter-spacing:.5px;font-size:11px;color:#04140c;background:var(--accent);border:0;border-radius:7px;padding:7px 13px;cursor:pointer;flex:0 0 auto}
+.tbtn:disabled{opacity:.5;cursor:default}
+.averdict{border-top:1px solid var(--line);padding:13px 15px;background:var(--bg2)}
+.averdict:empty{display:none}
+.vbadge{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-radius:6px;border:1px solid}
+.vbadge.true_positive{color:var(--blocked);border-color:rgba(255,77,87,.4);background:rgba(255,77,87,.08)}
+.vbadge.false_positive{color:var(--safe);border-color:rgba(37,244,176,.4);background:rgba(37,244,176,.08)}
+.vbadge.needs_review{color:var(--review);border-color:rgba(245,182,46,.4);background:rgba(245,182,46,.08)}
+.vmeta{display:flex;gap:14px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--muted);margin:10px 0}
+.vmeta b{color:var(--text)}
+.vrat{font-size:13px;color:#cfd5de;line-height:1.55;margin-top:6px}
+.vintel{margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--accent2);border-left:2px solid var(--accent2);padding-left:10px}
+.vrec{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.vrec b{color:var(--text)}
 .feed::-webkit-scrollbar{width:8px}.feed::-webkit-scrollbar-thumb{background:var(--line2);border-radius:8px}
 
 .msg{max-width:860px;margin:0 auto 20px;animation:rise .35s ease}
@@ -174,8 +201,8 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
   <aside class="rail">
     <div class="rlabel">agents</div>
     <nav class="nav">
-      <a class="on"><i class="ti ti-terminal-2"></i> Security Shell</a>
-      <a><i class="ti ti-shield-half"></i> Alert Triage <span class="soon">soon</span></a>
+      <a class="on" data-view="shell"><i class="ti ti-terminal-2"></i> Security Shell</a>
+      <a data-view="triage"><i class="ti ti-shield-half"></i> Alert Triage</a>
       <a><i class="ti ti-radar-2"></i> Recon <span class="soon">soon</span></a>
       <a><i class="ti ti-sword"></i> Red Team <span class="soon">soon</span></a>
       <a><i class="ti ti-shield-check"></i> Blue Team <span class="soon">soon</span></a>
@@ -189,6 +216,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
   </aside>
 
   <main class="console">
+  <div class="view" id="view-shell">
     <div class="chead">
       <div class="ic"><i class="ti ti-terminal-2"></i></div>
       <div><h2>AI SECURITY SHELL</h2><p>plan → gate → execute (sandboxed) → explain</p></div>
@@ -210,6 +238,16 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
       </div>
       <div class="hintline">Type <kbd>/</kbd> for security skills · <kbd>↑↓</kbd> navigate · <kbd>↵</kbd> select · <kbd>esc</kbd> close</div>
     </div></div>
+  </div>
+
+  <div class="view hidden" id="view-triage">
+    <div class="chead">
+      <div class="ic"><i class="ti ti-shield-half"></i></div>
+      <div><h2>ALERT TRIAGE</h2><p>ingest → enrich → judge → recommend</p></div>
+      <button class="trefresh" id="trefresh"><i class="ti ti-refresh"></i> refresh</button>
+    </div>
+    <div class="tfeed" id="tfeed"></div>
+  </div>
   </main>
 
   <aside class="rail r tel">
@@ -295,6 +333,46 @@ function openPalette(filter){
 }
 function closePalette(){palette.classList.remove('open');}
 function pickSkill(i){const s=pItems[i];if(!s)return;input.value=s.q;closePalette();input.focus();}
+
+// ---- view switching (Security Shell <-> Alert Triage) ----
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('hidden', v.id!=='view-'+name));
+  document.querySelectorAll('.nav a[data-view]').forEach(a=>a.classList.toggle('on', a.dataset.view===name));
+  if(name==='triage') loadAlerts();
+}
+document.querySelectorAll('.nav a[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);}));
+
+// ---- Alert Triage view ----
+const tfeed=document.getElementById('tfeed');
+document.getElementById('trefresh')?.addEventListener('click',loadAlerts);
+function verdictHtml(r){
+  const label={true_positive:'True Positive',false_positive:'False Positive',needs_review:'Needs Review'}[r.verdict]||r.verdict;
+  return `<div class="vbadge ${r.verdict}">${label}</div>`+
+    `<div class="vmeta"><span>conf <b>${Math.round((r.confidence||0)*100)}%</b></span><span>severity <b>${r.severityScore??'-'}</b></span><span>priority <b>P${r.priority??'-'}</b></span><span>via <b>${esc(r.mode||'')}</b></span></div>`+
+    `<div class="vrat">${esc(r.rationale||'')}</div>`+
+    (r.intel?`<div class="vintel"><i class="ti ti-world-search"></i> ${esc(r.intel)}</div>`:'')+
+    (r.recommendation?`<div class="vrec"><b>Recommended:</b> ${esc(r.recommendation)}</div>`:'');
+}
+async function loadAlerts(){
+  tfeed.innerHTML='<div style="color:var(--dim);font-family:var(--mono);font-size:12px;padding:20px">loading alerts…</div>';
+  let data;
+  try{ data=await (await fetch('/alerts')).json(); }
+  catch{ tfeed.innerHTML='<div style="color:var(--blocked);font-family:var(--mono);font-size:12px;padding:20px">failed to load alerts</div>'; return; }
+  const alerts=data.alerts||[];
+  tfeed.innerHTML='';
+  alerts.forEach(a=>{
+    const card=el(`<div class="acard"><div class="arow"><span class="sevdot ${a.severity}"></span><div class="ainfo"><div class="atitle">${esc(a.title)}</div><div class="ameta">${esc(a.assetName)} · ${esc(a.source)} · ${esc(a.severity)}</div></div><button class="tbtn">Triage</button></div><div class="averdict"></div></div>`);
+    const btn=card.querySelector('.tbtn'),vd=card.querySelector('.averdict');
+    if(a.triage) vd.innerHTML=verdictHtml(a.triage);
+    btn.onclick=async()=>{
+      btn.disabled=true;btn.textContent='triaging…';
+      try{ const r=await (await fetch(`/triage/${a.id}`,{method:'POST'})).json(); vd.innerHTML=verdictHtml(r); }
+      catch{ vd.innerHTML='<span style="color:var(--blocked);font-family:var(--mono);font-size:11px">triage failed</span>'; }
+      btn.disabled=false;btn.textContent='Triage';
+    };
+    tfeed.appendChild(card);
+  });
+}
 
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 function el(h){const d=document.createElement('div');d.innerHTML=h.trim();return d.firstElementChild;}

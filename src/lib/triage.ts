@@ -1,4 +1,5 @@
 import { callLLM, hasAnyProvider, safeParseJson } from "./runtime.js";
+import { extractIndicators, enrichMany, formatEnrichmentContext } from "./enrichment.js";
 
 export interface Alert {
   id: string;
@@ -22,6 +23,7 @@ export interface TriageResult {
   rationale: string;
   recommendation: string;
   mode: "model" | "deterministic";
+  intel?: string;   // live threat-intel on the alert's indicators
 }
 
 const SEV_BASE: Record<string, number> = { critical: 90, high: 70, medium: 45, low: 20 };
@@ -62,13 +64,21 @@ const VALID = ["true_positive", "false_positive", "needs_review"];
 
 export async function triageAlert(alert: Alert): Promise<TriageResult> {
   const base = deterministic(alert);
+
+  // Live threat-intel on the alert's indicators (IPs, hashes, CVEs).
+  const indicators = extractIndicators(`${alert.title} ${alert.description} ${(alert.indicators ?? []).join(" ")}`);
+  const enrichments = indicators.length ? await enrichMany(indicators) : [];
+  const intel = enrichments.length ? enrichments.map((e) => `${e.indicator} → ${e.verdict}`).join("; ") : undefined;
+  const intelCtx = formatEnrichmentContext(enrichments);
+  base.intel = intel;
+
   if (!hasAnyProvider()) return base;
   try {
     const raw = await callLLM(SYSTEM,
       `Alert:\n- Title: ${alert.title}\n- Description: ${alert.description}\n` +
       `- Source: ${alert.source}\n- Severity: ${alert.severity}\n- Asset: ${alert.assetName}\n` +
       `- Indicators: ${(alert.indicators ?? []).join(", ") || "none"}\n\n` +
-      `Rule pre-score: ${base.severityScore}/100 (${base.verdict}).`,
+      `Rule pre-score: ${base.severityScore}/100 (${base.verdict}).${intelCtx}`,
       { role: "fast", temperature: 0.2 });
     const o = safeParseJson(raw) as Record<string, unknown> | null;
     if (o && typeof o.verdict === "string" && VALID.includes(o.verdict)) {
@@ -82,6 +92,7 @@ export async function triageAlert(alert: Alert): Promise<TriageResult> {
         rationale: String(o.rationale ?? base.rationale),
         recommendation: String(o.recommendation ?? base.recommendation),
         mode: "model",
+        intel,
       };
     }
   } catch { /* fall back to deterministic */ }
