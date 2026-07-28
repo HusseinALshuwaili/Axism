@@ -1,9 +1,11 @@
+import "dotenv/config";
 import express, { type Express } from "express";
 import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import healthRouter from "./routes/health.js";
 import shellRouter from "./routes/shell.js";
+import triageRouter from "./routes/triage.js";
 import { logger } from "./lib/logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,6 +21,7 @@ app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
+    if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return cb(null, true);   // ← NEW: allow local dev
     logger.warn("cors rejected", { origin });
     cb(new Error("Not allowed by CORS"));
   },
@@ -33,6 +36,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use(healthRouter);
 app.use(shellRouter);
+app.use(triageRouter);
 
 const port = Number(process.env.PORT ?? 4000);
 app.listen(port, () => logger.info("Axism listening", { port, url: `http://localhost:${port}` }));
