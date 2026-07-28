@@ -37,7 +37,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 /* ---- top bar ---- */
 .top{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;border-bottom:1px solid var(--line);background:rgba(8,11,18,.7);backdrop-filter:blur(6px);z-index:20}
 .brand{display:flex;align-items:center;gap:11px}
-.mark{width:26px;height:26px;position:relative}
+.mark{width:30px;height:30px;object-fit:contain;mix-blend-mode:screen}
 .brand h1{font-family:var(--disp);font-weight:700;font-size:19px;letter-spacing:3px;margin:0}
 .brand h1 span{color:var(--accent)}
 .brand small{font-family:var(--mono);color:var(--dim);font-size:10px;letter-spacing:1px;margin-left:2px}
@@ -186,11 +186,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
 <div class="app">
   <div class="top">
     <div class="brand">
-      <svg class="mark" viewBox="0 0 26 26" fill="none">
-        <path d="M13 1.5 2.5 7v9L13 24.5 23.5 16V7L13 1.5Z" stroke="#25f4b0" stroke-width="1.3"/>
-        <path d="M13 6.5 7.5 9.7v6.6L13 19.5l5.5-3.2V9.7L13 6.5Z" fill="rgba(37,244,176,.12)" stroke="#25f4b0" stroke-width="1"/>
-        <circle cx="13" cy="13" r="2" fill="#25f4b0"/>
-      </svg>
+      <img class="mark" src="/logo.png" alt="Axism" />
       <h1>AX<span>ISM</span></h1><small>v0.1</small>
     </div>
     <div class="sep"></div>
